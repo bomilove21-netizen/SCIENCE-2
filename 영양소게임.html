@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>영양소 탐정 게임</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f8ff; }
+  h1 { color: #2e8b57; }
+  .question { margin: 20px 0; padding: 15px; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  .question-text { font-size: 22px; font-weight: bold; color: #1e3d2f; white-space: pre-wrap; margin-bottom: 10px; }
+  .options { margin-top: 10px; }
+  label { display: block; margin: 5px 0; font-size: 19px; font-weight: normal; cursor: pointer; }
+  .feedback { margin-top: 10px; font-weight: bold; }
+  .group-title { font-weight: bold; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>🕵️‍♂️ 영양소 탐정 게임</h1>
+<div id="game"></div>
+
+<script>
+const nutrients = ["단당류","녹말","단백질","지방"];
+const reagents = ["베네딕트","뷰렛","아이오딘","수단 III"];
+
+const questions = [
+  // 1단계 – 음식별 영양소 맞추기
+  {q:"음식: 우유\n주로 어떤 영양소가 들어 있을까? (단당류 / 녹말 / 단백질 / 지방)", a:["단백질"], hint:"우유에는 근육 형성에 필요한 영양소가 많아."},
+  {q:"음식: 바나나\n주로 어떤 영양소가 들어 있을까? (단당류 / 녹말 / 단백질 / 지방)", a:["단당류"], hint:"과일 속에는 바로 에너지로 사용할 수 있는 당이 많이 들어있어."},
+  {q:"음식: 감자\n주로 어떤 영양소가 들어 있을까? (단당류 / 녹말 / 단백질 / 지방)", a:["녹말"], hint:"우리가 주로 먹는 밥, 빵에 많이 들어 있는 탄수화물이야."},
+  {q:"음식: 식용유\n주로 어떤 영양소가 들어 있을까? (단당류 / 녹말 / 단백질 / 지방)", a:["지방"], hint:"식용유에는 단백질이나 탄수화물이 들어있지 않아."},
+  {q:"음식: 두유\n주로 어떤 영양소가 들어 있을까? (단당류 / 녹말 / 단백질 / 지방)", a:["단백질"], hint:"두유는 콩으로 만들었어. 콩에는 어떤 영양소가 들어있지?"},
+
+  // 2단계 – 음식별 영양소 + 시약
+  {q:"음식: 사과\n주로 어떤 영양소가 들어 있으며, 어떤 시약으로 검출할까?", a:["단당류","베네딕트"], hint:"단당류는 베네딕트 반응으로 검출 가능."},
+  {q:"음식: 두부\n주로 어떤 영양소가 들어 있으며, 어떤 시약으로 검출할까?", a:["단백질","뷰렛"], hint:"단백질은 뷰렛 반응으로 검출 가능."},
+  {q:"음식: 옥수수\n주로 어떤 영양소가 들어 있으며, 어떤 시약으로 검출할까?", a:["녹말","아이오딘"], hint:"녹말은 아이오딘 반응으로 검출 가능."},
+  {q:"음식: 빵\n주로 어떤 영양소가 들어 있으며, 어떤 시약으로 검출할까?", a:["녹말","아이오딘"], hint:"녹말은 아이오딘 반응으로 검출 가능."},
+  {q:"음식: 땅콩\n주로 어떤 영양소가 들어 있으며, 어떤 시약으로 검출할까?", a:["지방","수단 III"], hint:"땅콩에는 주로 지방이 들어 있으며, 수단 III로 검출 가능."},
+
+  // 3단계 – 단일 시료
+  {q:"단일 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 청록색 → 황적색 |\n| 아이오딘 | 없음 |\n| 뷰렛 | 없음 |\n| 수단 III | 없음 |\n시료에 어떤 영양소가 들어 있을까?", a:["단당류"], hint:"포도에 들어있는 영양소예요."},
+  {q:"단일 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 없음 |\n| 아이오딘 | 갈색 → 청람색 |\n| 뷰렛 | 없음 |\n| 수단 III | 없음 |\n시료에 어떤 영양소가 들어 있을까?", a:["녹말"], hint:"국수에 들어있는 영양소예요."},
+  {q:"단일 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 없음 |\n| 아이오딘 | 없음 |\n| 뷰렛 | 청색 → 보라색 |\n| 수단 III | 없음 |\n시료에 어떤 영양소가 들어 있을까?", a:["단백질"], hint:"달걀 흰자에 들어있는 영양소예요."},
+  {q:"단일 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 없음 |\n| 아이오딘 | 없음 |\n| 뷰렛 | 없음 |\n| 수단 III | 붉은색 → 선홍색 |\n시료에 어떤 영양소가 들어 있을까?", a:["지방"], hint:"땅콩에 들어있는 영양소예요."},
+
+  // 4단계 – 혼합 시료 (6문항)
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 청록색 → 황적색 |\n| 아이오딘 | 없음 |\n| 뷰렛 | 청색 → 보라색 |\n| 수단 III | 없음 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["단당류","단백질"], hint:"사과와 달걀흰자에 들어있는 영양소예요."},
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 청록색 → 황적색 |\n| 아이오딘 | 갈색 → 청람색 |\n| 뷰렛 | 없음 |\n| 수단 III | 없음 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["단당류","녹말"], hint:"양파와 감자에 들어있는 영양소예요."},
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 없음 |\n| 아이오딘 | 갈색 → 청람색 |\n| 뷰렛 | 청색 → 보라 |\n| 수단 III | 없음 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["녹말","단백질"], hint:"빵과 닭가슴살에 들어있는 영양소예요."},
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 청록색 → 황적색 |\n| 아이오딘 | 없음 |\n| 뷰렛 | 없음 |\n| 수단 III | 붉은색 → 선홍색 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["단당류","지방"], hint:"쇠고기와 버터에 들어있는 영양소예요."},
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 없음 |\n| 아이오딘 | 갈색 → 청람색 |\n| 뷰렛 | 없음 |\n| 수단 III | 붉은색 → 선홍색 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["녹말","지방"], hint:"옥수수와 식용유에 들어있는 영양소예요."},
+  {q:"혼합 시료로 영양소 검출 실험을 해보았다\n| 베네딕트 | 청록색 → 황적색 |\n| 아이오딘 | 갈색 → 청람색 |\n| 뷰렛 | 청색 → 보라색 |\n| 수단 III | 붉은색 → 선홍색 |\n시료에 들어있는 모든 영양소를 맞혀보세요.", a:["단당류","녹말","단백질","지방"], hint:"모든 시약 색 변화했으니 모든 영양소가 다 들어있어요."}
+];
+
+let current = 0;
+
+// 배열 랜덤 섞기
+function shuffle(array){return array.sort(()=>Math.random()-0.5);}
+
+function showQuestion(){
+  const gameDiv = document.getElementById("game");
+  const correct = questions[current].a;
+  const isStage2 = correct.some(x=>reagents.includes(x));
+  
+  if(isStage2){
+    // 2단계: 영양소 + 시약
+    let nutrientHtml = shuffle(nutrients).map(opt=>`<label><input type="checkbox" value="${opt}" onchange="checkStage2()"> ${opt}</label>`).join("");
+    let reagentHtml = shuffle(reagents).map(opt=>`<label><input type="checkbox" value="${opt}" onchange="checkStage2()"> ${opt}</label>`).join("");
+    
+    gameDiv.innerHTML = `<div class="question">
+      <div class="question-text">${questions[current].q}</div>
+      <div class="options">
+        <div class="group-title">영양소 선택:</div>${nutrientHtml}
+        <div class="group-title">시약 선택:</div>${reagentHtml}
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </div>`;
+  } else if(current>=questions.length-6){ 
+    // 4단계: 혼합 시료
+    let optionHtml = shuffle(nutrients).map(opt=>`<label><input type="checkbox" value="${opt}" onchange="checkMix()"> ${opt}</label>`).join("");
+    gameDiv.innerHTML = `<div class="question">
+      <div class="question-text">${questions[current].q}</div>
+      <div class="options">${optionHtml}</div>
+      <div class="feedback" id="feedback"></div>
+    </div>`;
+  } else {
+    // 1,3단계
+    let optionHtml = shuffle(nutrients).map(opt=>`<label><input type="checkbox" value="${opt}" onchange="checkAnswer()"> ${opt}</label>`).join("");
+    gameDiv.innerHTML = `<div class="question">
+      <div class="question-text">${questions[current].q}</div>
+      <div class="options">${optionHtml}</div>
+      <div class="feedback" id="feedback"></div>
+    </div>`;
+  }
+}
+
+// 2단계 채점
+function checkStage2(){
+  const checkboxes = document.querySelectorAll(".options input");
+  const checked = Array.from(checkboxes).filter(cb=>cb.checked);
+  const nutrientChecked = checked.filter(cb=>nutrients.includes(cb.value));
+  const reagentChecked = checked.filter(cb=>reagents.includes(cb.value));
+  if(nutrientChecked.length===0 || reagentChecked.length===0) return;
+
+  const inputSet = new Set(checked.map(cb=>cb.value));
+  const correctSet = new Set(questions[current].a);
+  const feedbackDiv = document.getElementById("feedback");
+  const isCorrect = correctSet.size===inputSet.size && [...correctSet].every(x=>inputSet.has(x));
+  
+  if(isCorrect){
+    feedbackDiv.innerHTML="정답! ✅";
+    current++;
+    setTimeout(()=>{if(current<questions.length) showQuestion(); else feedbackDiv.innerHTML+="<br>🎉 짝짝짝! 문제를 모두 맞추셨군요! 최우수 영양소 탐정이 되신 것을 축하합니다!"},800);
+  } else {
+    feedbackDiv.innerHTML="틀렸어요 😅 힌트: "+questions[current].hint;
+  }
+}
+
+// 4단계 혼합 시료 채점
+function checkMix(){
+  const checkboxes = document.querySelectorAll(".options input");
+  const checked = Array.from(checkboxes).filter(cb=>cb.checked);
+  if(checked.length===0) return;
+
+  const inputSet = new Set(checked.map(cb=>cb.value));
+  const correctSet = new Set(questions[current].a);
+  const feedbackDiv = document.getElementById("feedback");
+
+  if(inputSet.size!==correctSet.size) return; // 모든 정답 체크될 때까지 채점 보류
+  const isCorrect = [...correctSet].every(x=>inputSet.has(x));
+
+  if(isCorrect){
+    feedbackDiv.innerHTML="정답! ✅";
+    current++;
+    setTimeout(()=>{if(current<questions.length) showQuestion(); else feedbackDiv.innerHTML+="<br>🎉 짝짝짝! 문제를 모두 맞추셨군요! 최우수 영양소 탐정이 되신 것을 축하합니다!"},800);
+  } else {
+    feedbackDiv.innerHTML="틀렸어요 😅 힌트: "+questions[current].hint;
+  }
+}
+
+// 1,3단계 채점
+function checkAnswer(){
+  const checkboxes = document.querySelectorAll(".options input:checked");
+  const inputSet = new Set(Array.from(checkboxes).map(cb=>cb.value));
+  const correctSet = new Set(questions[current].a);
+  const feedbackDiv = document.getElementById("feedback");
+
+  const isCorrect = correctSet.size===inputSet.size && [...correctSet].every(x=>inputSet.has(x));
+
+  if(isCorrect){
+    feedbackDiv.innerHTML="정답! ✅";
+    current++;
+    setTimeout(()=>{if(current<questions.length) showQuestion(); else feedbackDiv.innerHTML+="<br>🎉 짝짝짝! 문제를 모두 맞추셨군요! 최우수 영양소 탐정이 되신 것을 축하합니다!"},800);
+  } else {
+    feedbackDiv.innerHTML="틀렸어요 😅 힌트: "+questions[current].hint;
+  }
+}
+
+showQuestion();
+</script>
+</body>
+</html>
